@@ -12,7 +12,7 @@ license: apache-2.0
 
 In today's breakout rooms, we will be following the process that you saw during the challenge.
 
-Today, we will repeat the same process - but powered by our Pythonic RAG implementation we created last week. 
+Today, we will repeat the same process - but powered by our Pythonic RAG implementation we created last week.
 
 You'll notice a few differences in the `app.py` logic - as well as a few changes to the `aimakerspace` package to get things working smoothly with Chainlit.
 
@@ -28,7 +28,7 @@ You'll notice a few differences in the `app.py` logic - as well as a few changes
 
 The primary method of customizing and interacting with the Chainlit UI is through a few critical [decorators](https://blog.hubspot.com/website/decorators-in-python).
 
-> NOTE: Simply put, the decorators (in Chainlit) are just ways we can "plug-in" to the functionality in Chainlit. 
+> NOTE: Simply put, the decorators (in Chainlit) are just ways we can "plug-in" to the functionality in Chainlit.
 
 We'll be concerning ourselves with three main scopes:
 
@@ -38,9 +38,9 @@ We'll be concerning ourselves with three main scopes:
 
 Let's dig into each scope and see what we're doing!
 
-### On Application Start:
+### On Application Start
 
-The first thing you'll notice is that we have the traditional "wall of imports" this is to ensure we have everything we need to run our application. 
+The first thing you'll notice is that we have the traditional "wall of imports" this is to ensure we have everything we need to run our application.
 
 ```python
 import os
@@ -58,7 +58,7 @@ from aimakerspace.openai_utils.chatmodel import ChatOpenAI
 import chainlit as cl
 ```
 
-Next up, we have some prompt templates. As all sessions will use the same prompt templates without modification, and we don't need these templates to be specific per template - we can set them up here - at the application scope. 
+Next up, we have some prompt templates. As all sessions will use the same prompt templates without modification, and we don't need these templates to be specific per template - we can set them up here - at the application scope.
 
 ```python
 system_template = """\
@@ -77,7 +77,7 @@ user_role_prompt = UserRolePrompt(user_prompt_template)
 
 > NOTE: You'll notice that these are the exact same prompt templates we used from the Pythonic RAG Notebook in Week 1 Day 2!
 
-Following that - we can create the Python Class definition for our RAG pipeline - or *chain*, as we'll refer to it in the rest of this walkthrough. 
+Following that - we can create the Python Class definition for our RAG pipeline - or _chain_, as we'll refer to it in the rest of this walkthrough.
 
 Let's look at the definition first:
 
@@ -111,12 +111,12 @@ class RetrievalAugmentedQAPipeline:
 
 Notice a few things:
 
-1. We have modified this `RetrievalAugmentedQAPipeline` from the initial notebook to support streaming. 
-2. In essence, our pipeline is *chaining* a few events together:
-    1. We take our user query, and chain it into our Vector Database to collect related chunks
-    2. We take those contexts and our user's questions and chain them into the prompt templates
-    3. We take that prompt template and chain it into our LLM call
-    4. We chain the response of the LLM call to the user
+1. We have modified this `RetrievalAugmentedQAPipeline` from the initial notebook to support streaming.
+2. In essence, our pipeline is _chaining_ a few events together:
+   1. We take our user query, and chain it into our Vector Database to collect related chunks
+   2. We take those contexts and our user's questions and chain them into the prompt templates
+   3. We take that prompt template and chain it into our LLM call
+   4. We chain the response of the LLM call to the user
 3. We are using a lot of `async` again!
 
 Now, we're going to create a helper function for processing uploaded text files.
@@ -133,22 +133,22 @@ Now we can define our helper.
 def process_file(file: AskFileResponse):
     import tempfile
     import shutil
-    
+
     print(f"Processing file: {file.name}")
-    
+
     # Create a temporary file with the correct extension
     suffix = f".{file.name.split('.')[-1]}"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
         # Copy the uploaded file content to the temporary file
         shutil.copyfile(file.path, temp_file.name)
         print(f"Created temporary file at: {temp_file.name}")
-        
+
         # Create appropriate loader
         if file.name.lower().endswith('.pdf'):
             loader = PDFLoader(temp_file.name)
         else:
             loader = TextFileLoader(temp_file.name)
-            
+
         try:
             # Load and process the documents
             documents = loader.load_documents()
@@ -164,15 +164,16 @@ def process_file(file: AskFileResponse):
 
 Simply put, this downloads the file as a temp file, we load it in with `TextFileLoader` and then split it with our `TextSplitter`, and returns that list of strings!
 
-#### ❓ QUESTION #1:
+#### ❓ QUESTION #1
 
 Why do we want to support streaming? What about streaming is important, or useful?
+Faster perceived response time: Users get immediate feedback. Even if the full answer takes 5 seconds, seeing it start in 0.3 seconds feels faster.Reduces anxiety: Especially in chat, users don’t stare at a blank screen wondering if the system is working.
 
-### On Chat Start:
+### On Chat Start
 
 The next scope is where "the magic happens". On Chat Start is when a user begins a chat session. This will happen whenever a user opens a new chat window, or refreshes an existing chat window.
 
-You'll see that our code is set-up to immediately show the user a chat box requesting them to upload a file. 
+You'll see that our code is set-up to immediately show the user a chat box requesting them to upload a file.
 
 ```python
 while files == None:
@@ -204,11 +205,12 @@ retrieval_augmented_qa_pipeline = RetrievalAugmentedQAPipeline(
 
 Now, we'll save that into our user session!
 
-> NOTE: Chainlit has some great documentation about [User Session](https://docs.chainlit.io/concepts/user-session). 
+> NOTE: Chainlit has some great documentation about [User Session](https://docs.chainlit.io/concepts/user-session).
 
-#### ❓ QUESTION #2: 
+#### ❓ QUESTION #2
 
 Why are we using User Session here? What about Python makes us need to use this? Why not just store everything in a global variable?
+Sessions solve this by creating isolated spaces to store state per user. If you use a global variable then user1 could access user2 data or overwrite it.
 
 ### On Message
 
@@ -241,7 +243,7 @@ Due to the way the repository is created - it should be straightforward to deplo
 <details>
     <summary>Creating a Hugging Face Space</summary>
 
-1.  Navigate to the `Spaces` tab.
+1. Navigate to the `Spaces` tab.
 
 ![image](https://i.imgur.com/aSMlX2T.png)
 
@@ -258,7 +260,7 @@ Due to the way the repository is created - it should be straightforward to deplo
 <details>
     <summary>Adding this Repository to the Newly Created Space</summary>
 
-1. Collect the SSH address from the newly created Space. 
+1. Collect the SSH address from the newly created Space.
 
 ![image](https://i.imgur.com/Oag0m8E.png)
 
@@ -276,9 +278,9 @@ git remote add hf HF_SPACE_SSH_ADDRESS_HERE
 git pull hf main --no-rebase --allow-unrelated-histories -X ours
 ```
 
-4. Use the command: 
+4. Use the command:
 
-```bash 
+```bash
 git add .
 ```
 
@@ -288,7 +290,7 @@ git add .
 git commit -m "Deploying Pythonic RAG"
 ```
 
-6. Use the command: 
+6. Use the command:
 
 ```bash
 git push hf main
@@ -307,7 +309,7 @@ git push hf main
 
 ![image](https://i.imgur.com/zh0a2By.png)
 
-2. Navigate to `Variables and secrets` on the Settings page and click `New secret`: 
+2. Navigate to `Variables and secrets` on the Settings page and click `New secret`:
 
 ![image](https://i.imgur.com/g2KlZdz.png)
 
@@ -325,7 +327,7 @@ You just deployed Pythonic RAG!
 
 Try uploading a text file and asking some questions!
 
-#### ❓ Discussion Question #1:
+#### ❓ Discussion Question #1
 
 Upload a PDF file of the recent DeepSeek-R1 paper and ask the following questions:
 

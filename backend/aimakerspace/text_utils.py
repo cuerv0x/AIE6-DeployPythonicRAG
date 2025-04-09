@@ -75,45 +75,45 @@ class PDFLoader:
         print(f"Is file: {os.path.isfile(self.path)}")
         print(f"Is directory: {os.path.isdir(self.path)}")
         print(f"File permissions: {oct(os.stat(self.path).st_mode)[-3:]}")
-        
+
         try:
             # Try to open the file first to verify access
-            with open(self.path, 'rb') as test_file:
+            with open(self.path, "rb") as test_file:
                 pass
             
             # If we can open it, proceed with loading
             self.load_file()
-            
+
         except IOError as e:
             raise ValueError(f"Cannot access file at '{self.path}': {str(e)}")
         except Exception as e:
             raise ValueError(f"Error processing file at '{self.path}': {str(e)}")
 
     def load_file(self):
-        with open(self.path, 'rb') as file:
+        with open(self.path, "rb") as file:
             # Create PDF reader object
             pdf_reader = PyPDF2.PdfReader(file)
-            
+
             # Extract text from each page
             text = ""
             for page in pdf_reader.pages:
                 text += page.extract_text() + "\n"
-            
+
             self.documents.append(text)
 
     def load_directory(self):
         for root, _, files in os.walk(self.path):
             for file in files:
-                if file.lower().endswith('.pdf'):
+                if file.lower().endswith(".pdf"):
                     file_path = os.path.join(root, file)
-                    with open(file_path, 'rb') as f:
+                    with open(file_path, "rb") as f:
                         pdf_reader = PyPDF2.PdfReader(f)
-                        
+
                         # Extract text from each page
                         text = ""
                         for page in pdf_reader.pages:
                             text += page.extract_text() + "\n"
-                        
+
                         self.documents.append(text)
 
     def load_documents(self):

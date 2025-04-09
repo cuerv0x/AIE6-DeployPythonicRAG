@@ -1,31 +1,46 @@
+# Stage 1: Build React frontend
+FROM node:18 AS frontend-builder
+WORKDIR /frontend
+COPY frontend/package*.json ./
+RUN npm install
+COPY frontend/ ./
+RUN npm run build
 
-# Get a distribution that has uv already installed
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+# Stage 2: Build Python backend and serve frontend
+FROM python:3.9-slim
+WORKDIR /app
 
-# Add user - this is the user that will run the app
-# If you do not set user, the app will run as root (undesirable)
-RUN useradd -m -u 1000 user
-USER user
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set the home directory and path
-ENV HOME=/home/user \
-    PATH=/home/user/.local/bin:$PATH        
+# Copy backend requirements and install dependencies
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-ENV UVICORN_WS_PROTOCOL=websockets
+# Copy backend code
+COPY backend/app ./app
 
+# Copy built frontend from previous stage
+COPY --from=frontend-builder /frontend/dist ./static
 
-# Set the working directory
-WORKDIR $HOME/app
+# Install nginx to serve static files
+RUN apt-get update && apt-get install -y nginx \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy the app to the container
-COPY --chown=user . $HOME/app
+# Configure nginx
+COPY nginx.conf /etc/nginx/nginx.conf
 
-# Install the dependencies
-# RUN uv sync --frozen
-RUN uv sync
+# Create startup script
+RUN echo '#!/bin/bash\n\
+nginx &\n\
+uvicorn app.main:app --host 0.0.0.0 --port 7860\n\
+' > /app/start.sh && chmod +x /app/start.sh
 
-# Expose the port
+# Expose the port Hugging Face Spaces expects
 EXPOSE 7860
 
-# Run the app
-CMD ["uv", "run", "chainlit", "run", "app.py", "--host", "0.0.0.0", "--port", "7860"]
+# Start both nginx and FastAPI
+CMD ["/app/start.sh"]

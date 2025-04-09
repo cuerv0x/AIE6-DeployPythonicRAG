@@ -1,46 +1,36 @@
-# Stage 1: Build React frontend
-FROM node:18 AS frontend-builder
-WORKDIR /frontend
-COPY frontend/package*.json ./
-RUN npm install
-COPY frontend/ ./
-RUN npm run build
-
-# Stage 2: Build Python backend and serve frontend
-FROM python:3.9-slim
+FROM node:20-alpine AS builder
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Install dependencies based on the preferred package manager
+COPY frontend .
+RUN \
+    if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
+    elif [ -f package-lock.json ]; then npm ci; \
+    elif [ -f pnpm-lock.yaml ]; then yarn global add pnpm && pnpm i --frozen-lockfile; \
+    else echo "Lockfile not found." && exit 1; \
+    fi
 
-# Copy backend requirements and install dependencies
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN npm run build
+FROM python:3.10-slim AS backend
+WORKDIR /app
 
-# Copy backend code
-COPY backend/app ./app
+RUN apt-get update && apt-get install --no-install-recommends -y \
+    git ffmpeg curl gnupg \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy built frontend from previous stage
-COPY --from=frontend-builder /frontend/dist ./static
+RUN useradd -m -u 1000 user
 
-# Install nginx to serve static files
-RUN apt-get update && apt-get install -y nginx \
-    && rm -rf /var/lib/apt/lists/*
+COPY ./pyproject.toml .
+RUN uv sync
 
-# Configure nginx
-COPY nginx.conf /etc/nginx/nginx.conf
+USER user
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH
 
-# Create startup script
-RUN echo '#!/bin/bash\n\
-nginx &\n\
-uvicorn app.main:app --host 0.0.0.0 --port 7860\n\
-' > /app/start.sh && chmod +x /app/start.sh
 
-# Expose the port Hugging Face Spaces expects
-EXPOSE 7860
+WORKDIR $HOME/app
+COPY --from=builder /app/build ./static
+COPY . .    
 
-# Start both nginx and FastAPI
-CMD ["/app/start.sh"]
+CMD ["python", "app.py"]

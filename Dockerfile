@@ -1,36 +1,47 @@
-FROM node:20-alpine AS builder
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
+# Stage 1: Build the React frontend
+FROM node:18 AS frontend-builder
 
-# Install dependencies based on the preferred package manager
-COPY frontend .
-RUN \
-    if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
-    elif [ -f package-lock.json ]; then npm ci; \
-    elif [ -f pnpm-lock.yaml ]; then yarn global add pnpm && pnpm i --frozen-lockfile; \
-    else echo "Lockfile not found." && exit 1; \
-    fi
-
-RUN npm run build
-FROM python:3.10-slim AS backend
-WORKDIR /app
-
-RUN apt-get update && apt-get install --no-install-recommends -y \
-    git ffmpeg curl gnupg \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
+# Add user - this is the user that will run the app
+# If you do not set user, the app will run as root (undesirable)
 RUN useradd -m -u 1000 user
+USER user
 
-COPY ./pyproject.toml .
+# Set the home directory and path
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH        
+
+ENV UVICORN_WS_PROTOCOL=websockets
+
+
+# Set the working directory
+WORKDIR $HOME/app
+
+# Copy the app to the container
+COPY --chown=user . $HOME/app
+
+# Install the dependencies
+# RUN uv sync --frozen
 RUN uv sync
 
-USER user
-ENV HOME=/home/user \
-    PATH=/home/user/.local/bin:$PATH
+WORKDIR /app/frontend
+COPY ./frontend/package*.json ./
+RUN npm install
+COPY ./frontend .
+RUN npm run build
 
+# Stage 2: Build the FastAPI backend
+# Get a distribution that has uv already installed
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+WORKDIR /app/backend
+COPY ./backend .
 
-WORKDIR $HOME/app
-COPY --from=builder /app/build ./static
-COPY . .    
+# Stage 3: Combine and run the application
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+WORKDIR /app
+COPY --from=frontend-builder /app/frontend/build ./static
+COPY --from=backend-builder /app/backend .
 
-CMD ["python", "app.py"]
+# Expose the port
+EXPOSE 7860
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]

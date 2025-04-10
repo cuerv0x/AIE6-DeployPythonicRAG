@@ -1,6 +1,6 @@
 # Stage 1: Build the React frontend
-FROM node:18 AS frontend-builder
-
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+RUN apt update -y && apt install nodejs -y
 # Add user - this is the user that will run the app
 # If you do not set user, the app will run as root (undesirable)
 RUN useradd -m -u 1000 user
@@ -31,12 +31,11 @@ RUN npm run build
 
 # Stage 2: Build the FastAPI backend
 # Get a distribution that has uv already installed
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+
 WORKDIR /app/backend
 COPY ./backend .
 
 # Stage 3: Combine and run the application
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
 WORKDIR /app
 COPY --from=frontend-builder /app/frontend/build ./static
 COPY --from=backend-builder /app/backend .

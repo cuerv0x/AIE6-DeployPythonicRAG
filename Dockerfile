@@ -23,7 +23,7 @@ COPY --chown=user . $HOME/app
 # RUN uv sync --frozen
 RUN uv sync
 
-WORKDIR /app/frontend
+WORKDIR $HOME/app/frontend
 COPY ./frontend/package*.json ./
 RUN npm install
 COPY ./frontend .
@@ -32,11 +32,11 @@ RUN npm run build
 # Stage 2: Build the FastAPI backend
 # Get a distribution that has uv already installed
 
-WORKDIR /app/backend
+WORKDIR $HOME/app/backend
 COPY ./backend .
 
 # Stage 3: Combine and run the application
-WORKDIR /app
+WORKDIR $HOME/app
 COPY --from=frontend-builder /app/frontend/build ./static
 COPY --from=backend-builder /app/backend .
 
